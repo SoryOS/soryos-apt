@@ -1,0 +1,49 @@
+name: Publish APT Repo (Pages)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aptly gnupg
+
+      - name: Import GPG key
+        env:
+          SORYOS_APT_GPG_PRIVATE: ${{ secrets.SORYOS_APT_GPG_PRIVATE }}
+        run: |
+          test -n "$SORYOS_APT_GPG_PRIVATE"
+          echo "$SORYOS_APT_GPG_PRIVATE" | gpg --batch --import
+          gpg --list-secret-keys --keyid-format=long
+
+      - name: Build repo
+        env:
+          SORYOS_APT_CODENAME: ${{ vars.SORYOS_APT_CODENAME }}
+          SORYOS_APT_GPG_KEYID: ${{ vars.SORYOS_APT_GPG_KEYID }}
+        run: |
+          CODENAME="${SORYOS_APT_CODENAME:-soryos-26.04}"
+          KEYID="${SORYOS_APT_GPG_KEYID}"
+          test -n "$KEYID"
+          mkdir -p incoming public
+          # Put .deb files into incoming/ (commit them, or download artifacts in a prior step).
+          ./publish.sh --codename "$CODENAME" --component main --arch amd64 --gpg-key "$KEYID" --incoming ./incoming --out ./public
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages
