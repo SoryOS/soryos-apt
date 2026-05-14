@@ -1,0 +1,5 @@
+# Do not commit private signing material
+keys/*private*
+keys/*.sec
+keys/*.gpg
+.aptly/
