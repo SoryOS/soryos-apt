@@ -26,13 +26,14 @@ jobs:
           SORYOS_APT_GPG_PRIVATE: ${{ secrets.SORYOS_APT_GPG_PRIVATE }}
           SORYOS_APT_GPG_PRIVATE_B64: ${{ secrets.SORYOS_APT_GPG_PRIVATE_B64 }}
         run: |
-          # Prefer base64 secret to avoid newline/formatting issues in GitHub secrets UI.
+          set -e
           if [ -n "${SORYOS_APT_GPG_PRIVATE_B64:-}" ]; then
-            printf '%s' "$SORYOS_APT_GPG_PRIVATE_B64" | base64 -d | gpg --batch --import
+            printf '%s' "$SORYOS_APT_GPG_PRIVATE_B64" | base64 -d > /tmp/soryos-priv.asc
           else
-            test -n "${SORYOS_APT_GPG_PRIVATE:-}"
-            printf '%s' "$SORYOS_APT_GPG_PRIVATE" | gpg --batch --import
+            printf '%s\n' "$SORYOS_APT_GPG_PRIVATE" > /tmp/soryos-priv.asc
           fi
+          cat /tmp/soryos-priv.asc
+          gpg --batch --import /tmp/soryos-priv.asc
           gpg --list-secret-keys --keyid-format=long
 
       - name: Build repo
