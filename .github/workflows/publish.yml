@@ -24,9 +24,15 @@ jobs:
       - name: Import GPG key
         env:
           SORYOS_APT_GPG_PRIVATE: ${{ secrets.SORYOS_APT_GPG_PRIVATE }}
+          SORYOS_APT_GPG_PRIVATE_B64: ${{ secrets.SORYOS_APT_GPG_PRIVATE_B64 }}
         run: |
-          test -n "$SORYOS_APT_GPG_PRIVATE"
-          echo "$SORYOS_APT_GPG_PRIVATE" | gpg --batch --import
+          # Prefer base64 secret to avoid newline/formatting issues in GitHub secrets UI.
+          if [ -n "${SORYOS_APT_GPG_PRIVATE_B64:-}" ]; then
+            printf '%s' "$SORYOS_APT_GPG_PRIVATE_B64" | base64 -d | gpg --batch --import
+          else
+            test -n "${SORYOS_APT_GPG_PRIVATE:-}"
+            printf '%s' "$SORYOS_APT_GPG_PRIVATE" | gpg --batch --import
+          fi
           gpg --list-secret-keys --keyid-format=long
 
       - name: Build repo
@@ -36,7 +42,7 @@ jobs:
         run: |
           CODENAME="${SORYOS_APT_CODENAME:-soryos-26.04}"
           KEYID="${SORYOS_APT_GPG_KEYID}"
-          test -n "$KEYID"
+          test -n "${KEYID:-}"
           mkdir -p incoming public
           # Put .deb files into incoming/ (commit them, or download artifacts in a prior step).
           ./publish.sh --codename "$CODENAME" --component main --arch amd64 --gpg-key "$KEYID" --incoming ./incoming --out ./public
